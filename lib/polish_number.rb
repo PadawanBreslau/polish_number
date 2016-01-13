@@ -23,8 +23,8 @@ module PolishNumber
 
   CURRENCIES = {
     :PLN => {:one => 'złoty', :few => 'złote', :many => 'złotych'},
-    :EUR => {:one => 'euro', :many => 'euro'},
-    :USD => {:one => 'dolar', :many => 'dolarów'}
+    :EUR => {:one => 'euro', :few => 'euro', :many => 'euro'},
+    :USD => {:one => 'dolar', few => 'dolarów', :many => 'dolarów'}
   }
 
   def self.translate(number, options={})
