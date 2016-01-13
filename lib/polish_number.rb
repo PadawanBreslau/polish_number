@@ -22,7 +22,9 @@ module PolishNumber
   MILLIONS = {:one => 'milion', :few => 'miliony', :many => 'milionów'}
 
   CURRENCIES = {
-    :PLN => {:one => 'złoty', :few => 'złote', :many => 'złotych'}
+    :PLN => {:one => 'złoty', :few => 'złote', :many => 'złotych'},
+    :EUR => {:one => 'euro', :many => 'euro'},
+    :USD => {:one => 'dolar', :many => 'dolarów'}
   }
 
   def self.translate(number, options={})
