@@ -27,12 +27,36 @@ module PolishNumber
     :USD => {:one => 'dolar', :few => 'dolary', :many => 'dolarów'}
   }
 
-  def self.translate(number, options={})
-    if options[:currency] && !CURRENCIES.has_key?(options[:currency])
-      raise ArgumentError, "unknown :currency option '#{options[:currency].inspect}'. Choose one from: #{CURRENCIES.inspect}"
+  def self.handle_improper_currency(currency)
+    if currency && !CURRENCIES.has_key?(currency)
+      raise ArgumentError, "unknown :currency option '#{currency.inspect}'. Choose one from: #{CURRENCIES.keys.inspect}"
     end
+  end
 
-    number = number.to_i
+  def self.handle_invalid_number(number)
+    if !numeric?(number)
+      raise ArgumentError, "Not a numeric value given: #{number}"
+    end
+  end
+
+  def self.numeric?(number)
+    !!Kernel.Float(number)
+  rescue TypeError, ArgumentError
+    false
+  end
+
+  def self.try_convert(number)
+    case number.class
+    when Integer then number
+    when String then number.to_i(options[:numeral_base] || 10)
+    else number.to_i
+    end
+  end
+
+  def self.translate(number, options={})
+    handle_invalid_number(number)
+    handle_improper_currency(options[:currency])
+    number = try_convert(number)
 
     unless (0..999999999).include? number
       raise ArgumentError, 'number should be in 0..999999999 range'
