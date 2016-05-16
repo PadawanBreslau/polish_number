@@ -85,19 +85,28 @@ describe :PolishNumber do
     123754 => 'sto dwadzieścia trzy tysiące siedemset pięćdziesiąt cztery złote',
     999999 => 'dziewięćset dziewięćdziesiąt dziewięć tysięcy dziewięćset dziewięćdziesiąt dziewięć złotych',
     1999999 => 'jeden milion dziewięćset dziewięćdziesiąt dziewięć tysięcy dziewięćset dziewięćdziesiąt dziewięć złotych',
-    5123754 => 'pięć milionów sto dwadzieścia trzy tysiące siedemset pięćdziesiąt cztery złote'
+    5123754 => 'pięć milionów sto dwadzieścia trzy tysiące siedemset pięćdziesiąt cztery złote',
+    325005123754 => 'trzysta dwadzieścia pięć miliardów pięć milionów sto dwadzieścia trzy tysiące siedemset pięćdziesiąt cztery złote'
   }.each do |number, translation|
     it "should translate #{number} to '#{translation}'" do
       PolishNumber.translate(number, :currency => :PLN).should == translation
     end
   end
 
+  it 'should support hex numbers' do
+    PolishNumber.translate('0xFF', :numeric_base => 16).should == "dwieście pięćdziesiąt pięć"
+  end
+
   it "should raise ArgumentError when number is smaller than 0" do
     lambda { PolishNumber.translate(-1) }.should.raise(ArgumentError)
   end
 
-  it "should raise ArgumentError when number is greater than 999999999.99" do
-    lambda { PolishNumber.translate(1_000_000_000) }.should.raise(ArgumentError)
+  it "should not raise ArgumentError when number is greater than 999999999.99 but smaller than 999999999999.99" do
+    PolishNumber.translate(1_000_000_000).should == "jeden miliard"
+  end
+
+  it "should raise ArgumentError when number is greater than 999999999999.99" do
+    lambda { PolishNumber.translate(1_000_000_000_000) }.should.raise(ArgumentError)
   end
 
   it "should raise ArgumentError when currency is unknown" do

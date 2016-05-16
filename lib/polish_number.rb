@@ -19,7 +19,12 @@ module PolishNumber
 
   THOUSANDS = {:one => 'tysiąc', :few => 'tysiące', :many => 'tysięcy'}
 
-  MILLIONS = {:one => 'milion', :few => 'miliony', :many => 'milionów'}
+  def self.ending_helper(core)
+    {:one => core, :few => core.dup << "y", :many => core.dup << "ów"}
+  end
+
+  MILLIONS = ending_helper("milion")
+  BILLIONS = ending_helper("miliard")
 
   CURRENCIES = {
     :PLN => {:one => 'złoty', :few => 'złote', :many => 'złotych'},
@@ -27,8 +32,42 @@ module PolishNumber
     :USD => {:one => 'dolar', :few => 'dolary', :many => 'dolarów'}
   }
 
+  def self.translate(number, options={})
+    handle_invalid_number(number)
+    number = try_convert(number, options)
+
+    unless (0..999999999999).include? number
+      raise ArgumentError, 'number should be in 0..999999999999 range'
+    end
+
+    if number.zero?
+      result = ZERO
+    else
+      digits = unpack_digits(number)
+      digit_copy = digits.dup
+      result = ''
+      hundred_count = process_hundreds(digits.pop(3))
+      thousend_count = process_greater(digits.pop(3), THOUSANDS)
+      milion_count = process_greater(digits.pop(3), MILLIONS)
+      billion_count = process_greater(digits.pop(3), BILLIONS)
+      result << billion_count << milion_count << thousend_count << hundred_count
+      result.strip!
+    end
+
+    if options[:currency]
+      handle_improper_currency(options[:currency])
+      currency = CURRENCIES[options[:currency]]
+      result << ' '
+      result << currency[classify_currency(number, digit_copy)]
+    end
+
+    result
+  end
+
+  private
+
   def self.handle_improper_currency(currency)
-    if currency && !CURRENCIES.has_key?(currency)
+    if !CURRENCIES.has_key?(currency)
       raise ArgumentError, "unknown :currency option '#{currency.inspect}'. Choose one from: #{CURRENCIES.keys.inspect}"
     end
   end
@@ -45,89 +84,78 @@ module PolishNumber
     false
   end
 
-  def self.try_convert(number)
-    case number.class
-    when Integer then number
-    when String then number.to_i(options[:numeral_base] || 10)
-    else number.to_i
-    end
-  end
-
-  def self.translate(number, options={})
-    handle_invalid_number(number)
-    handle_improper_currency(options[:currency])
-    number = try_convert(number)
-
-    unless (0..999999999).include? number
-      raise ArgumentError, 'number should be in 0..999999999 range'
-    end
-
-    if number == 0
-      result = ZERO.dup
+  def self.try_convert(number, options={})
+    if number.kind_of? Fixnum
+       number
+    elsif number.kind_of? String
+      number.to_i(options.fetch(:numeric_base){10})
     else
-      formatted_number = sprintf('%09.0f', number)
-      digits = formatted_number.chars.map { |char| char.to_i }
-
-      result = ''
-      result << process_0_999(digits[0..2])
-      result << millions(number/1000000, digits[0..2])
-      result << ' '
-      result << process_0_999(digits[3..5])
-      result << thousands(number/1000, digits[3..5])
-      result << ' '
-      result << process_0_999(digits[6..9])
-      result.strip!
+      number.to_i
     end
-
-    if options[:currency]
-      currency = CURRENCIES[options[:currency]]
-      result << ' '
-      result << currency[classify(number, digits)]
-    end
-
-    result
   end
 
-  private
+  def self.unpack_digits(base)
+    digits = []
 
-  def self.process_0_999(digits)
+    while base != 0 do
+      base, last_digit = base.divmod(10)
+      digits << last_digit
+    end
+
+    digits.reverse
+  end
+
+  def self.process_number(digit)
+    UNITIES[digit.to_i]
+  end
+
+  def self.process_tens(digits)
     result = ''
-    result << HUNDREDS[digits[0]]
-
-    if digits[1] == 1 && digits[2] != 0
-      result << TEENS[digits[2]]
+    if digits[0] == 1 && digits[1] != 0
+      result << TEENS[digits[1]]
     else
-      result << TENS[digits[1]]
-      result << UNITIES[digits[2]]
+      result << TENS[digits[0]]
+      result << UNITIES[digits[1]]
     end
-
     result
   end
 
-  def self.thousands(number, digits)
-    if number == 0
-      ''
+  def self.process_hundreds(digits)
+    if digits.size == 3
+      HUNDREDS[digits.shift] + process_tens(digits)
+    elsif digits.size == 2
+      process_tens(digits)
     else
-      THOUSANDS[classify(number, digits)]
+      process_number(digits.first)
     end
   end
 
-  def self.millions(number, digits)
-    if number == 0
-      ''
+  def self.process_greater(digits, level)
+    number = process_hundreds(digits)
+    if digits.nil? || digits.all?{|d| d.zero?}
+      ' '
     else
-      MILLIONS[classify(number, digits)]
+      number + level[classify_ending(digits.last)] + ' '
     end
   end
 
-  def self.classify(number, digits)
+  def self.classify_currency(number, digits)
     if number == 1
       :one
-    # all numbers with 2, 3 or 4 at the end, but not teens
+      # all numbers with 2, 3 or 4 at the end, but not teens
     elsif digits && (2..4).include?(digits[-1]) && digits[-2] != 1
       :few
     else
       :many
     end
   end
+
+  def self.classify_ending(last_digit, semilast_digit = nil)
+    case last_digit
+    when 1 then :one
+    when 2,3,4 then :few
+    else :many
+    end
+  end
+
 end
